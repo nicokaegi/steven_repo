@@ -7,6 +7,7 @@ from typing import Union
 import asyncio
 import datetime
 
+timeout = 60
 
 def decoder(image) -> Union[str, None]:
     
@@ -29,7 +30,7 @@ def decoder(image) -> Union[str, None]:
 
 async def get_qr() -> Union[str, None]:
 
-    endTime = datetime.datetime.now() + datetime.timedelta(minutes=1)
+    endTime = datetime.datetime.now() + datetime.timedelta(seconds=timeout)
     cap = cv2.VideoCapture(0)
     while datetime.datetime.now() <= endTime :
         ret, frame = cap.read()
@@ -48,7 +49,7 @@ async def main():
 
     try:
 
-        async with asyncio.timeout(60):
+        async with asyncio.timeout(timeout):
             qrcode=await get_qr()
             print("success : ", qrcode)
     except TimeoutError:
