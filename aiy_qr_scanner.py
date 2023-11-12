@@ -1,15 +1,28 @@
+
+import asyncio
+import datetime
 import time
+from typing import Union
+
+
 import cv2
 import numpy as np
+
 from pyzbar.pyzbar import decode
 from flask import Flask
-from typing import Union
+
 
 from aiy.leds import (Leds, Pattern, PrivacyLed, RgbLeds, Color)
 
 
+timeout = 60
+
 def decoder(image) -> Union[str, None]:
-    
+
+    # input : image captured from the webcam
+    # output : either a string extrated from a qr code or None if no qrcode was detected 
+    # use pyzbar to extra the infromation from the qrcode 
+
     gray_img = cv2.cvtColor(image,0)
     qrcode = decode(gray_img)
     
@@ -27,40 +40,44 @@ def decoder(image) -> Union[str, None]:
     
     return None
 
-def get_qr(active_time) -> Union[str, None]:
-    
-    feed_back_led_time = 5
+def activate_camera() -> Union[str, None]:
+
+    # output : either a string extrated from a qr code or None if no qrcode was detected by the timeout
+    # controls the leds and camera attachted to rasberry pi 
+    # runs for how many seconds until the timeout is met 
 
     with Leds() as leds:
-        leds.update(Leds.rgb_on(Color.YELLOW)) 
-        leds.pattern = Pattern.blink(500)     
+
+        endTime = datetime.datetime.now() + datetime.timedelta(seconds=timeout)
         cap = cv2.VideoCapture(0)
-        for sec in range(active_time):
+        leds.update(Leds.rgb_on(Color.YELLOW)) 
+        while datetime.datetime.now() <= endTime :
             ret, frame = cap.read()
-            #print(frame.shape)
-            time.sleep(1)
-            qrcode = decoder(frame) 
+            qrcode = decoder(frame)
             if qrcode:
+                print("success : ", qrcode)
                 leds.update(Leds.rgb_on(Color.GREEN))
-                print("success")
-                time.sleep(feed_back_led_time)
-                
+                time.sleep(1)
                 return qrcode
-             
-    leds.update(Leds.rgb_on(Color.RED))
-    print("fail")
-    time.sleep(feed_back_led_time)
-    return None
+
+        leds.update(Leds.rgb_on(Color.RED))
+        print("failed")
+        time.sleep(1)
+        leds.update(Leds.rgb_off)
+        return None
 
 app = Flask(__name__)
 
 @app.route('/')
 def main():
-    qrcode = get_qr(60)
+
+    # main flask server 
+
+    qrcode = activate_camera()
+    
     if qrcode: 
 
         return qrcode
     
     else:
         return "failed to get qr code"
-

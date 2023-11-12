@@ -1,16 +1,27 @@
-import time
-import cv2
-import numpy as np
-from pyzbar.pyzbar import decode
-from flask import Flask
-from typing import Union
+
 import asyncio
 import datetime
+import time
+from typing import Union
+
+
+import cv2
+import numpy as np
+
+from pyzbar.pyzbar import decode
+from flask import Flask
+
+
+
 
 timeout = 60
 
 def decoder(image) -> Union[str, None]:
-    
+
+    # input : image captured from the webcam
+    # output : either a string extrated from a qr code or None if no qrcode was detected 
+    # use pyzbar to extra the infromation from the qrcode 
+
     gray_img = cv2.cvtColor(image,0)
     qrcode = decode(gray_img)
     
@@ -28,7 +39,12 @@ def decoder(image) -> Union[str, None]:
     
     return None
 
-async def get_qr() -> Union[str, None]:
+def activate_camera() -> Union[str, None]:
+
+    # output : either a string extrated from a qr code or None if no qrcode was detected by the timeout
+    # controls the leds and camera attachted to rasberry pi 
+    # runs for how many seconds until the timeout is met 
+
 
     endTime = datetime.datetime.now() + datetime.timedelta(seconds=timeout)
     cap = cv2.VideoCapture(0)
@@ -36,25 +52,22 @@ async def get_qr() -> Union[str, None]:
         ret, frame = cap.read()
         qrcode = decoder(frame)
         if qrcode:
+            print("success : ", qrcode)
+            time.sleep(1)
             return qrcode
-             
-    return None
+
+        print("failed")
+        time.sleep(1)
+        return None
 
 app = Flask(__name__)
 
 @app.route('/')
-async def main():
+def main():
 
-    print("active")
+    # main flask server 
 
-    try:
-
-        async with asyncio.timeout(timeout):
-            qrcode=await get_qr()
-            print("success : ", qrcode)
-    except TimeoutError:
-           qrcode = None 
-           print("failed to get qr")
+    qrcode = activate_camera()
     
     if qrcode: 
 
@@ -62,4 +75,3 @@ async def main():
     
     else:
         return "failed to get qr code"
-
